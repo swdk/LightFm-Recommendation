@@ -64,8 +64,8 @@ def _build_interaction_matrix(rows, cols, data, min_rating):
     # return mat.tocoo()
     return mat
 
-def _parse_item_metadata(num_items,
-                         item_metadata_raw, genres_raw):
+def _parse_item_metadata(num_items,num_users,
+                         item_metadata_raw, genres_raw,user_raw):
 
     genres = []
 
@@ -102,11 +102,44 @@ def _parse_item_metadata(num_items,
                        if int(val) > 0]
 
         for gid in item_genres:
-            genre_features[iid, gid] = 5.0
+            genre_features[iid, gid] = 1.0
 
     return (id_features, id_feature_labels,
             genre_features.tocsr(), genre_feature_labels)
 
+def _parse_item_metadata2(num_users,item_raw):
+    # 22 occupations
+    # user_occupation = sp.lil_matrix((num_users, 22),
+    #                                dtype=np.float32)
+    user_age = sp.lil_matrix((num_users, 16),
+                             dtype=np.float32)
+    user_gender = sp.lil_matrix((num_users, 3),
+                             dtype=np.float32)
+
+    # 16 age groups
+    # 2 gender
+
+    max_age_group = 0
+    for line in item_raw:
+        if not line:
+            continue
+
+        splt = line.split('|')
+        uid = int(splt[0])
+        age = int(splt[1])
+        age_group= round(age/5)
+        user_age[uid, age_group] = 1
+        gender = splt[2]
+        if(gender == 'M'):
+            user_gender[uid, 1] = 1
+        else:
+            user_gender[uid,2] = 1
+
+    user_feature  = sp.hstack([user_age, user_gender])
+
+    # print(user_feature)
+
+    return(user_feature.tocsr())
 
 def fetch_movielens(data_home=None, indicator_features=True, genre_features=True,
                     min_rating=0.0, download_if_missing=True):
@@ -189,9 +222,13 @@ def fetch_movielens(data_home=None, indicator_features=True, genre_features=True
 
     # Load metadata features
     (id_features, id_feature_labels,
-     genre_features_matrix, genre_feature_labels) = _parse_item_metadata(num_items,
-                                                                         item_metadata_raw,
-                                                                         genres_raw)
+     genre_features_matrix, genre_feature_labels) = _parse_item_metadata(num_items,num_users,
+                                                                             item_metadata_raw,
+                                                                            genres_raw,
+                                                                            user_raw)
+    (user_age) = _parse_item_metadata2(num_items,user_raw)
+    # print(user_age)
+    # assert user_age.shape ==(num_users,16)
 
     assert id_features.shape == (num_items, len(id_feature_labels))
     assert genre_features_matrix.shape == (num_items, len(genre_feature_labels))
@@ -211,6 +248,7 @@ def fetch_movielens(data_home=None, indicator_features=True, genre_features=True
             'test': test,
             'item_features': features,
             'item_feature_labels': feature_labels,
-            'item_labels': id_feature_labels}
+            'item_labels': id_feature_labels,
+            'user_features':user_age}
 
     return data
