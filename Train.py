@@ -5,7 +5,7 @@ from lightfm.evaluation import auc_score
 import pickle
 
 # fetch data and format it
-data = fetch_movielens(min_rating=0)
+data = fetch_movielens(min_rating=3)
 
 
 for key, value in data.items():
